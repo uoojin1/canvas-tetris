@@ -5,8 +5,42 @@ Meteor.startup(() => {
 
 const canvas = document.getElementById('tetris');
 const context = canvas.getContext('2d'); // need context to draw
-
 context.scale(20,20); // scaling everything by 20 times inside the canvas
+
+let createMatrix = (width, height) => {
+    const matrix = [];
+    while(height--) {
+        matrix.push(new Array(width).fill(0));
+    }
+    return matrix;
+}
+
+const arena = createMatrix(12, 20);
+const player = {
+    pos: { x: 0, y: 0},
+    matrix : null,
+    score: 0
+};
+const shadow = {
+    pos: { x: 0, y: 0 },
+    matrix : null
+}
+
+let lastTime = 0;
+let dropCounter = 0; // count ticking for the element to drop
+let dropInterval = 1000; // 1 ms
+
+const colors = [
+    null,
+    '#8ea604',
+    '#f5bb00',
+    '#ff6201',
+    '#ed1c24',
+    '#0e7c7b',
+    '#0d497c',
+    '#7f0e7d',
+    '#595959'
+];
 
 function arenaSweep() {
     let rowCount = 1;
@@ -26,21 +60,6 @@ function arenaSweep() {
     console.log('arenaSweep called');
 }
 
-let lastTime = 0;
-let dropCounter = 0; // count ticking for the element to drop
-let dropInterval = 1000; // 1 ms
-
-const colors = [
-    null,
-    '#8ea604',
-    '#f5bb00',
-    '#ff6201',
-    '#ed1c24',
-    '#0e7c7b',
-    '#0d497c',
-    '#7f0e7d'
-];
-
 let collide = (arena, player) => {
     const [matrix, offset] = [player.matrix, player.pos];
     for( let y = 0; y < matrix.length; ++y ){ // matrix rows
@@ -54,13 +73,6 @@ let collide = (arena, player) => {
     return false;
 }
 
-let createMatrix = (width, height) => {
-    const matrix = [];
-    while(height--) {
-        matrix.push(new Array(width).fill(0));
-    }
-    return matrix;
-}
 
 let createPiece = (type) => {
     if (type === 'T'){
@@ -146,14 +158,32 @@ function draw() {
     clearCanavs();
     drawMatrix(arena, {x: 0, y: 0}); // arena is never drawn with any offset or has any offset so 0,0 
     drawMatrix(player.matrix, player.pos);
+    shadow.matrix = player.matrix;
+    shadow.pos.x = player.pos.x;
+    drawShadow(shadow.matrix, shadow.pos);
 }
 
-function drawMatrix(matrix, offset) {
+let drawMatrix = (matrix, offset) => {
     matrix.forEach((row, y) => {
         row.forEach((value, x) => {
             if (value !== 0) {
                 context.fillStyle = colors[value];
                 context.fillRect(x + offset.x, y + offset.y, 1, 1);
+            }
+        });
+    });
+}
+let drawShadow = (matrix, offset) => {
+    while(!collide(arena, shadow)){
+        shadow.pos.y++;
+    }
+    shadow.pos.y--;
+    matrix.forEach((row, y) => {
+        row.forEach((value, x) => {
+            if (value !== 0) {
+                context.strokeStyle = colors[8];
+                context.lineWidth = .07;
+                context.strokeRect(x + offset.x, y + shadow.pos.y, 1, 1);
             }
         });
     });
@@ -164,6 +194,10 @@ let playerReset = () => {
     player.matrix = createPiece(pieces[pieces.length * Math.random() | 0]); // floored
     player.pos.y = 0;
     player.pos.x = (arena[0].length/2 | 0) - (player.matrix[0].length/2 | 0);
+
+    shadow.pos.y = player.pos.y;
+    shadow.pos.x = player.pos.x;
+
     if(collide(arena, player)){
         arena.forEach(row => row.fill(0));
         player.score = 0;
@@ -241,14 +275,6 @@ function update(time = 0) {
 
 let updateScore = () => {
     document.getElementById('score').innerText = player.score;
-}
-
-const arena = createMatrix(12, 20);
-
-const player = {
-    pos: { x: 0, y: 0},
-    matrix : null,
-    score: 0
 }
 
 document.addEventListener('keydown', (event) => {
